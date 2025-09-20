@@ -875,32 +875,14 @@
     // ===== Produtos (CRUD + modal + códigos) =====
     function bindProdutos() {
         const grid = $("#pGrid");
-        const btnNew = $("#pNew");
-        const inpSearch = $("#pSearch");
         const btnExport = $("#pExport");
         const inpImport = $("#pImport");
-
-        // Modal refs
-        const dlg = $("#prodDlg");
-        const pfCod = $("#pfCod");
-        const pfGen = $("#pfGen");
-        const pfCodHint = $("#pfCodHint");
-        const pfSku = $("#pfSku");
-        const pfDesc = $("#pfDesc");
-        const pfPreco = $("#pfPreco");
-        const pfEst = $("#pfEst");
-        const pfSave = $("#pfSave");
-        const pfCancel = $("#pfCancel");
-
-        // ===== helpers =====
-        function dBounce(fn, ms) { let t = null; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms || 150); }; }
-        const normStr = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        const btnImportar = $("#btnImportar");
 
         // ===== renderizar produtos =====
         function renderProds() {
             const list = getProds();
             grid.innerHTML = "";
-
             list.forEach(p => {
                 const tr = document.createElement("tr");
                 tr.setAttribute("data-id", p.id);
@@ -908,7 +890,7 @@
                 <td>${p.cod}</td>
                 <td>${p.sku}</td>
                 <td>${p.desc}</td>
-                <td>${Number(p.preco).toFixed(2)}</td>
+                <td>R$ ${Number(p.preco).toFixed(2)}</td>
                 <td>${p.estoque}</td>
                 <td>
                     <button data-act="edit">✏️</button>
@@ -919,150 +901,74 @@
             });
         }
 
-        // ===== salvar produto =====
-        pfSave?.addEventListener("click", () => {
-            const list = getProds();
-            try {
-                const cod = genCodeFromRaw(pfCod.value, list);
-                const sku = String(pfSku.value || "").trim();
-                const desc = String(pfDesc.value || "").trim();
-                const preco = Number(pfPreco.value || 0);
-                const estoque = parseInt(pfEst.value || 0);
+        // ===== normalizador de chave =====
+        const normKey = s => String(s || "")
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .trim();
 
-                if (!sku) { notify("Informe o SKU."); pfSku.focus(); return; }
-                if (!desc) { notify("Informe a descrição."); pfDesc.focus(); return; }
-                if (!Number.isFinite(preco) || preco < 0) { notify("Preço inválido."); pfPreco.focus(); return; }
-                if (!Number.isFinite(estoque) || estoque < 0) { notify("Estoque inválido."); pfEst.focus(); return; }
+        function rowToProd(row) {
+            // converte as chaves em um objeto normalizado
+            const map = {};
+            for (const k in row) map[normKey(k)] = row[k];
 
-                if (list.some(p => normStr(p.sku) === normStr(sku))) {
-                    notify("Já existe um produto com este SKU."); return;
-                }
+            return {
+                cod: parseInt(map["codigo"] || map["cod"] || map["id"] || 0),
+                sku: String(map["sku"] || map["referencia"] || map["ref"] || "").trim(),
+                desc: String(map["descricao"] || map["nome"] || map["produto"] || "").trim(),
+                preco: parseFloat(String(map["preco"] || map["preço"] || map["valor"] || "0").replace(",", ".")) || 0,
+                estoque: parseInt(map["estoque"] || map["quantidade"] || map["qtd"] || 0)
+            };
+        }
 
-                list.push({ id: UID(), cod, sku, desc, preco, estoque });
-                saveProds(list);
-                notify(`Produto cadastrado (Cód ${cod}).`);
-                closeModal();
-                renderProds();
-            } catch (err) { notify(err.message || "Erro ao salvar."); }
-        });
-
-        // ===== ações (editar/excluir) =====
-        grid?.addEventListener('click', (ev) => {
-            const btn = ev.target.closest?.('button[data-act]');
-            if (!btn) return;
-            const act = btn.getAttribute('data-act');
-            const tr = btn.closest('tr');
-            const id = tr?.getAttribute('data-id');
-            if (!id) return;
-
-            const list = getProds();
-            const i = list.findIndex(p => p.id === id);
-            if (i < 0) return;
-
-            if (act === 'del') {
-                if (confirm('Excluir este item?')) {
-                    list.splice(i, 1);
-                    saveProds(list);
-                    notify('Excluído.');
-                    renderProds();
-                }
-                return;
-            }
-
-            if (act === 'edit') {
-                const p = list[i];
-                const sku = prompt('SKU:', p.sku) ?? p.sku;
-                const desc = prompt('Descrição:', p.desc) ?? p.desc;
-                const preco = Number(prompt('Preço:', p.preco) ?? p.preco);
-                const estoque = parseInt(prompt('Estoque:', p.estoque) ?? p.estoque);
-
-                if (!sku || !desc || preco < 0 || estoque < 0) {
-                    notify('Dados inválidos.'); return;
-                }
-                list[i] = { ...p, sku, desc, preco, estoque };
-                saveProds(list);
-                notify('Atualizado.');
-                renderProds();
-            }
-        });
-
-        // ===== export JSON + CSV =====
-        btnExport?.addEventListener('click', () => {
+        // ===== exportar JSON/CSV =====
+        btnExport?.addEventListener("click", () => {
             const list = getProds();
             if (!list.length) { notify("Nenhum produto para exportar."); return; }
 
             // JSON
-            const exportJson = list.map(p => ({
-                cod: p.cod,
-                sku: p.sku,
-                desc: p.desc,
-                preco: Number(p.preco).toFixed(2),
-                estoque: p.estoque
-            }));
-            const blobJson = new Blob([JSON.stringify(exportJson, null, 2)], { type: 'application/json' });
-            const aJson = document.createElement('a');
+            const blobJson = new Blob([JSON.stringify(list, null, 2)], { type: "application/json" });
+            const aJson = document.createElement("a");
             aJson.href = URL.createObjectURL(blobJson);
-            aJson.download = 'produtos.json';
+            aJson.download = "produtos.json";
             aJson.click();
-            URL.revokeObjectURL(aJson.href);
 
             // CSV
             const headers = ["cod", "sku", "desc", "preco", "estoque"];
-            const rows = list.map(p =>
-                [
-                    p.cod,
-                    `"${p.sku}"`,
-                    `"${p.desc}"`,
-                    Number(p.preco).toFixed(2).replace(".", ","),
-                    p.estoque
-                ].join(";")
-            );
+            const rows = list.map(p => [
+                p.cod,
+                `"${p.sku}"`,
+                `"${p.desc}"`,
+                Number(p.preco).toFixed(2).replace(".", ","),
+                p.estoque
+            ].join(";"));
             const csv = [headers.join(";"), ...rows].join("\n");
-            const blobCsv = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const aCsv = document.createElement('a');
+            const blobCsv = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            const aCsv = document.createElement("a");
             aCsv.href = URL.createObjectURL(blobCsv);
-            aCsv.download = 'produtos.csv';
+            aCsv.download = "produtos.csv";
             aCsv.click();
-            URL.revokeObjectURL(aCsv.href);
 
             notify("Produtos exportados com sucesso!");
         });
 
-        // ===== import JSON/CSV/XLSX =====
-        inpImport?.addEventListener('change', async e => {
+        // ===== importar =====
+        btnImportar?.addEventListener("click", () => inpImport.click());
+
+        inpImport?.addEventListener("change", async e => {
             const f = e.target.files?.[0]; if (!f) return;
 
-            const normKey = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-            function pick(obj, variants) {
-                for (const v of variants) {
-                    for (const k in obj) {
-                        if (normKey(k) === normKey(v)) return obj[k];
-                    }
-                }
-                return undefined;
-            }
-
-            function rowToProd(row) {
-                let cod = pick(row, ["Código", "cod", "codigo", "id", "Produtos"]);
-                let sku = pick(row, ["SKU", "Referência", "referencia", "ref"]);
-                let desc = pick(row, ["Descrição", "descricao", "Nome", "produto"]);
-                let preco = pick(row, ["Preço Unit.", "preco", "preço", "valor"]);
-                let estoque = pick(row, ["Estoque", "quantidade", "qtd"]);
-
-                return {
-                    cod: parseInt(cod) || 0,
-                    sku: String(sku || "").trim(),
-                    desc: String(desc || "").trim(),
-                    preco: parseFloat(String(preco || "0").replace(",", ".")) || 0,
-                    estoque: parseInt(estoque) || 0
-                };
-            }
-
             async function parseFile(file) {
-                if (/\.json$/i.test(file.name)) return JSON.parse(await file.text());
+                // JSON
+                if (/\.json$/i.test(file.name)) {
+                    const data = JSON.parse(await file.text());
+                    return Array.isArray(data) ? data : data.produtos || [];
+                }
+                // CSV
                 if (/\.csv$/i.test(file.name)) {
                     const text = await file.text();
-                    const [header, ...lines] = text.split(/\r?\n/);
+                    const [header, ...lines] = text.split(/\r?\n/).filter(Boolean);
                     const keys = header.split(/[;,]/);
                     return lines.map(l => {
                         const cols = l.split(/[;,]/);
@@ -1071,9 +977,10 @@
                         return obj;
                     });
                 }
-                if (typeof XLSX !== "undefined") {
+                // XLS / XLSX
+                if (/\.(xls|xlsx)$/i.test(file.name)) {
                     const buf = await file.arrayBuffer();
-                    const wb = XLSX.read(buf, { type: 'array' });
+                    const wb = XLSX.read(buf, { type: "array" });
                     const ws = wb.Sheets[wb.SheetNames[0]];
                     return XLSX.utils.sheet_to_json(ws, { defval: "" });
                 }
@@ -1082,6 +989,7 @@
 
             try {
                 const rawRows = await parseFile(f);
+                console.log("Arquivo importado:", rawRows); // 🔎 DEBUG
                 const cur = getProds();
                 let added = 0;
 
@@ -1099,10 +1007,9 @@
                 console.error("Erro na importação:", err);
                 notify("Falha ao importar produtos.");
             }
-            e.target.value = '';
+            e.target.value = ""; // reseta input
         });
 
-        // ===== inicializa grid =====
         renderProds();
     }
 

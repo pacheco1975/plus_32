@@ -1,17 +1,91 @@
 <!doctype html>
 <html lang="pt-BR">
-<link rel="stylesheet" href="style.css">
-
-
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Smart – Balcão | Smart Tecnologia</title>
+
+    <!-- CSS externo -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- SheetJS para XLS/XLSX -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
     <style>
+        /* Fallback básico caso style.css não carregue */
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+            background: #f5f6fa;
+            color: #111;
+        }
 
+        .hidden {
+            display: none !important;
+        }
 
+        .btn {
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background: #007bff;
+            color: #fff;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .muted {
+            color: #666;
+            font-size: 13px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #333;
+            color: #fff;
+            padding: 10px 16px;
+            border-radius: 6px;
+            display: none;
+            z-index: 9999;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        header.topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: #fff;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .menubar {
+            display: flex;
+            gap: 20px;
+            background: #fafafa;
+            padding: 10px 20px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .menu-item {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        main {
+            padding: 20px;
+        }
     </style>
 </head>
 
@@ -21,42 +95,45 @@
         <div class="auth-card">
             <h2 style="margin:0 0 8px">Acessar o sistema</h2>
             <div class="muted" id="storeMode">—</div>
-            <div class="grid" style="margin-top:10px">
-                <form id="loginForm" class="grid">
-                    <div class="field"><label for="loginEmail">E-mail</label><input id="loginEmail" type="email"
-                            placeholder="admin@smart" required value="admin@smart" /></div>
-                    <div class="field"><label for="loginPass">Senha</label><input id="loginPass" type="password"
-                            placeholder="123456" required value="123456" /></div>
-                    <button class="btn" type="submit">Entrar</button>
-                    <div class="muted">Demo: <span class="badge">admin@smart / Smart@2025</span></div>
-                </form>
-                <div class="toolbar">
-                    <button id="btnVendas">Vendas (F2)</button>
-                    <button id="pNew">Novo</button>
-                    <button id="pExport">Exportar</button>
-                    <input id="pImport" type="file" accept=".json,.csv,.xls,.xlsx">
-                    <input id="pSearch" placeholder="Buscar...">
+            <form id="loginForm" class="grid" style="margin-top:10px">
+                <div class="field">
+                    <label for="loginEmail">E-mail</label>
+                    <input id="loginEmail" type="email" placeholder="admin@smart" required value="admin@smart" />
                 </div>
+                <div class="field">
+                    <label for="loginPass">Senha</label>
+                    <input id="loginPass" type="password" placeholder="123456" required value="123456" />
+                </div>
+                <button class="btn" type="submit">Entrar</button>
+                <div class="muted">Demo: <span class="badge">admin@smart / Smart@2025</span></div>
+            </form>
 
-                <hr style="border:0;border-top:1px solid var(--border);margin:4px 0">
-
-                <form id="regForm" class="grid">
-                    <h3 style="margin:0">Cadastrar cliente (CNPJ obrigatório)</h3>
-                    <div class="field"><label for="regName">Razão Social</label><input id="regName" required
-                            placeholder="Empresa Exemplo LTDA" /></div>
-                    <div class="field"><label for="regEmail">E-mail</label><input id="regEmail" type="email" required
-                            placeholder="contato@empresa.com.br" /></div>
-                    <div class="field"><label for="regCNPJ">CNPJ</label><input id="regCNPJ" inputmode="numeric"
-                            maxlength="18" placeholder="00.000.000/0000-00" required /></div>
-                    <div class="field"><label for="regPass">Senha</label><input id="regPass" type="password" required
-                            placeholder="Crie uma senha" /></div>
-                    <div class="toolbar">
-                        <button class="btn" type="submit">Cadastrar e entrar</button>
-                        <button class="btn ghost" type="button" id="fillDemo">Preencher demo</button>
-                    </div>
-                    <div class="muted">Aceitar CNPJ e CPF</div>
-                </form>
+            <div class="toolbar">
+                <button id="btnVendas" class="btn">Vendas (F2)</button>
+                <button id="pNew" class="btn">Novo</button>
+                <button id="pExport" class="btn">Exportar</button>
+                <input id="pImport" type="file" accept=".json,.csv,.xls,.xlsx" />
+                <input id="pSearch" placeholder="Buscar..." />
             </div>
+
+            <hr style="border:0;border-top:1px solid #ddd;margin:8px 0">
+
+            <form id="regForm" class="grid">
+                <h3 style="margin:0">Cadastrar cliente (CNPJ obrigatório)</h3>
+                <div class="field"><label for="regName">Razão Social</label><input id="regName" required
+                        placeholder="Empresa Exemplo LTDA" /></div>
+                <div class="field"><label for="regEmail">E-mail</label><input id="regEmail" type="email" required
+                        placeholder="contato@empresa.com.br" /></div>
+                <div class="field"><label for="regCNPJ">CNPJ</label><input id="regCNPJ" inputmode="numeric"
+                        maxlength="18" placeholder="00.000.000/0000-00" required /></div>
+                <div class="field"><label for="regPass">Senha</label><input id="regPass" type="password" required
+                        placeholder="Crie uma senha" /></div>
+                <div class="toolbar">
+                    <button class="btn" type="submit">Cadastrar e entrar</button>
+                    <button class="btn" type="button" id="fillDemo">Preencher demo</button>
+                </div>
+                <div class="muted">Aceitar CNPJ e CPF</div>
+            </form>
         </div>
     </div>
 
@@ -87,7 +164,7 @@
             <div class="user hidden" id="userBox">
                 <div class="avatar" id="avatar">?</div>
                 <div class="user-drop">
-                    <div style="padding:6px 10px;color:var(--muted);font-size:12px" id="userInfo">—</div>
+                    <div style="padding:6px 10px;color:#666;font-size:12px" id="userInfo">—</div>
                     <a href="#" id="myAccount">👤 Minha conta</a>
                     <button id="logoutBtn">⏻ Sair</button>
                 </div>
@@ -135,14 +212,13 @@
 
     <!-- CONTEÚDO -->
     <main>
-        <!-- KPIs -->
-
-        <!-- VISOR -->
         <section class="cards" id="view">
             <article class="card" style="grid-column:span 12">
                 <h3>Bem-vindo(a)</h3>
-                <p style="margin:6px 0;color:var(--muted)">Use o menu acima para abrir módulos. Atalhos: <kbd>/</kbd>
-                    busca • <kbd>g c</kbd> Clientes • <kbd>g o</kbd> Orçamentos.</p>
+                <p style="margin:6px 0;color:#666">
+                    Use o menu acima para abrir módulos.
+                    Atalhos: <kbd>/</kbd> busca • <kbd>g c</kbd> Clientes • <kbd>g o</kbd> Orçamentos.
+                </p>
             </article>
         </section>
     </main>
@@ -155,19 +231,15 @@
                 <input id="searchInput" placeholder="Pesquisar clientes, produtos, orçamentos, vendas…" />
                 <kbd>Esc</kbd>
             </div>
-            <div id="searchResults" style="margin-top:10px;color:var(--muted);font-size:14px"></div>
+            <div id="searchResults" style="margin-top:10px;color:#666;font-size:14px"></div>
         </form>
     </dialog>
 
     <!-- TOAST -->
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-
-    <script>
-
-    </script>
+    <!-- Scripts -->
     <script src="app.js"></script>
-
 </body>
 
 </html>
